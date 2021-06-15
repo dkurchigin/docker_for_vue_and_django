@@ -40,11 +40,12 @@ RUN pip install -r /var/www/simple_api/requirements.txt
 WORKDIR /var/www/simple_api
 RUN python manage.py makemigrations
 RUN python manage.py migrate
-RUN python manage.py fill_db
+# DONT WORK! RUN python manage.py fill_db
 RUN python manage.py collectstatic --noinput
 
 # START VUE
-WORKDIR /var/www/vue_app
+COPY vue_app /var/www/vue_app
+WORKDIR /var/www/vue_app/
 RUN npm install
 RUN npm run build
 

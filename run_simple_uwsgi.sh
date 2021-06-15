@@ -1,0 +1,1 @@
+uwsgi --socket /var/www/simple_api.sock --wsgi-file /var/www/simple_api/simple_api/wsgi.py --chmod-socket=666
