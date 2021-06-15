@@ -33,37 +33,31 @@ RUN apt-get install -y nginx
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 RUN sed -i "0,/nginx/s/nginx/docker-nginx/i" /usr/share/nginx/html/index.html
 
-# CLONE ALL FROM REPO
+# PREPARE API
 WORKDIR /var/www/
-
-RUN git clone 
-RUN pip install -r /var/www/ta_armory/scripts/get_data_from_one_direction_flowid/requirements.txt
-
+COPY simple_api /var/www/simple_api
+RUN pip install -r /var/www/simple_api/requirements.txt
+WORKDIR /var/www/simple_api
 RUN python manage.py makemigrations
 RUN python manage.py migrate
 RUN python manage.py fill_db
-COPY bootstrap-4.1.3-dist/css /var/www/ta_armory/static/css
 RUN python manage.py collectstatic --noinput
 
 # START VUE
-WORKDIR /var/www/pv3-ui/
+WORKDIR /var/www/vue_app
 RUN npm install
 RUN npm run build
 
 # COPY BOOTSTRAP TO PV3
-COPY css /var/www/pv3-ui/dist/css
-COPY bootstrap-4.1.3-dist/css /var/www/pv3-ui/dist/css
-RUN cp /var/www/pv3-ui/public/css/style.css /var/www/pv3-ui/dist/css/style_vue.css
-COPY jquery-3.6.0.min.js /var/www/pv3-ui/dist/js/jquery-3.6.0.min.js
-COPY bootstrap-4.1.3-dist/js /var/www/pv3-ui/dist/js
+COPY bootstrap-4.1.3-dist/css /var/www/vue_app/dist/css
+COPY jquery-3.6.0.min.js /var/www/vue_app/dist/js/jquery-3.6.0.min.js
+COPY bootstrap-4.1.3-dist/js /var/www/vue_app/dist/js
 
 # UPSTART NGINX
 COPY uwsgi_params /var/www/
-COPY armory_nginx.conf /var/www/
-COPY monitor_nginx.conf /var/www/ 
+COPY simple_api.conf /var/www/
 COPY vue_nginx.conf /var/www/
-RUN ln -s /var/www/armory_nginx.conf /etc/nginx/sites-enabled/
-RUN ln -s /var/www/monitor_nginx.conf /etc/nginx/sites-enabled/
+RUN ln -s /var/www/simple_api.conf /etc/nginx/sites-enabled/
 RUN ln -s /var/www/vue_nginx.conf /etc/nginx/sites-enabled/
 
 RUN chmod -R 777 /var/www/
@@ -71,18 +65,11 @@ RUN chmod -R 777 /var/www/
 # OPEN PORT FOR APACHE2
 EXPOSE 80
 
-# INSTALL REDIS & CELERY
-RUN pip install celery
-RUN pip install redis
-RUN apt-get install -y redis-server
+# INSTALL UWSGI
 RUN pip install uwsgi
 
 # COPY CONF, SETUP CELERY SERVICES, ALIASES
-# COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
-COPY run_armory.sh /var/www/run_armory.sh
-COPY run_armory_uwsgi.sh /var/www/run_armory_uwsgi.sh
-COPY run_django_monitor.sh /var/www/run_django_monitor.sh
-COPY run_django_monitor_uwsgi.sh /var/www/run_django_monitor_uwsgi.sh
+COPY run_simple_uwsgi.sh /var/www/run_simple_uwsgi.sh
 
 # RUN ALL BINARIES AND SERVICES
-CMD nginx & redis-server & . /var/www/run_armory.sh & . /var/www/run_armory_uwsgi.sh & . /var/www/run_django_monitor.sh & . /var/www/run_django_monitor_uwsgi.sh
+CMD nginx & . /var/www/run_simple_uwsgi.sh
